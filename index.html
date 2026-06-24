@@ -118,6 +118,21 @@ h1 em{font-style:italic;color:var(--accent);}
 
 /* ── FILTER BAR ──────────────────────────────────────────────────── */
 .filter-bar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:center;}
+.month-picker{position:relative;}
+.month-picker-btn{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:8px 13px;font-family:var(--sans);font-size:13px;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:border-color .15s;}
+.month-picker-btn:hover,.month-picker-btn.open{border-color:var(--accent);}
+.mp-arrow{font-size:10px;color:var(--ink-soft);transition:transform .15s;}
+.month-picker-btn.open .mp-arrow{transform:rotate(180deg);}
+.month-picker-drop{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--surface);border:1px solid var(--border);border-radius:3px;box-shadow:var(--shadow-lg);min-width:170px;padding:8px 0;}
+.month-picker-drop.open{display:block;}
+.mp-actions{display:flex;gap:6px;padding:4px 10px 8px;border-bottom:1px solid var(--border);margin-bottom:4px;}
+.mp-actions button{background:none;border:1px solid var(--border);border-radius:2px;font-family:var(--sans);font-size:11px;font-weight:600;color:var(--ink-mid);padding:3px 9px;cursor:pointer;transition:border-color .15s,color .15s;}
+.mp-actions button:hover{border-color:var(--accent);color:var(--accent);}
+.mp-list{max-height:220px;overflow-y:auto;}
+.mp-item{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:13px;color:var(--ink);transition:background .12s;}
+.mp-item:hover{background:var(--accent-lo);}
+.mp-item input[type=checkbox]{accent-color:var(--accent);width:13px;height:13px;cursor:pointer;}
+.mp-badge{margin-left:auto;font-size:10px;font-weight:700;background:var(--accent-lo);color:var(--accent);padding:1px 6px;border-radius:2px;}
 .f-input{background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:8px 13px;font-family:var(--sans);font-size:13px;color:var(--ink);outline:none;transition:border-color .15s;min-width:200px;}
 .f-input::placeholder{color:var(--ink-soft);opacity:.6;}
 .f-input:focus{border-color:var(--accent);}
@@ -277,9 +292,18 @@ footer{border-top:1px solid var(--border);padding:22px 60px;display:flex;justify
       <option value="B">Area B</option>
       <option value="C">Area C</option>
     </select>
-    <select class="f-select" id="f-month" onchange="applyFilters()">
-      <option value="">All Months</option>
-    </select>
+    <div class="month-picker" id="month-picker">
+      <button class="month-picker-btn" id="month-picker-btn" onclick="toggleMonthPicker(event)">
+        <span id="mp-label">All Months </span><span class="mp-arrow">&#9660;</span>
+      </button>
+      <div class="month-picker-drop" id="month-picker-drop">
+        <div class="mp-actions">
+          <button onclick="selectAllMonths()">All</button>
+          <button onclick="clearAllMonths()">None</button>
+        </div>
+        <div class="mp-list" id="mp-list"></div>
+      </div>
+    </div>
     <span class="f-count" id="f-count"></span>
   </div>
 
@@ -412,6 +436,19 @@ function getSkill(desig) {
    MONTH PARSING
 ══════════════════════════════════════════════════════════════════ */
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/* Financial-year sort key for a 'Mon-YY' or 'Mon-YYYY' string.
+   Apr=0 … Mar=11 so rows sort Apr-24, May-24 … Mar-25 correctly. */
+function myKey(my){
+  if(!my||my==='Unknown') return 99999;
+  const p=my.split('-');
+  const mi=MON.indexOf(p[0]);
+  if(mi<0) return 99999;
+  let yr=parseInt(p[1])||0;
+  if(yr<100) yr+=2000;          // 2-digit year fix
+  const fyMo = mi>=3 ? mi-3 : mi+9;   // Apr=0, May=1 … Mar=11
+  return yr*100 + fyMo;
+}
 
 function parseMonth(val, filename) {
   if (!val && !filename) return null;
@@ -594,6 +631,13 @@ function parseRows(raw, filename) {
 
     if(c_id<0) continue;
 
+    // Skip rows containing item-count markers e.g. "6 Item(s)", "Nov/Item:06", "Items: 42"
+    const isItemCountRow = row.some(c => {
+      const v = String(c==null?'':c).trim();
+      return /(\d+\s*item|item[s]?\s*[:\/]\s*\d+|item\(s\))/i.test(v);
+    });
+    if(isItemCountRow) continue;
+
     // Primary: get eid from resolved column
     let eid=String(row[c_id]==null?'':row[c_id]).trim();
 
@@ -722,13 +766,20 @@ async function runCalc(){
 
   if(!allRows.length){toast('No data extracted. Check file format.','err');calcBtn.disabled=false;return;}
 
-  // Populate month filter
-  const months=[...new Set(allRows.map(r=>r.month_year))].sort();
-  const mf=document.getElementById('f-month');
-  mf.innerHTML='<option value="">All Months</option>';
-  months.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;mf.appendChild(o);});
+  // Populate month picker checkboxes in FY order
+  const months=[...new Set(allRows.map(r=>r.month_year))].sort((a,b)=>myKey(a)-myKey(b));
+  const mpList=document.getElementById('mp-list');
+  mpList.innerHTML='';
+  months.forEach(m=>{
+    const cnt=allRows.filter(r=>r.month_year===m).length;
+    const lbl=document.createElement('label');
+    lbl.className='mp-item';
+    lbl.innerHTML=`<input type="checkbox" value="${m}" checked onchange="applyFilters();"/>${m}<span class="mp-badge">${cnt}</span>`;
+    mpList.appendChild(lbl);
+  });
+  updateMonthBtnLabel();
 
-  filteredRows=[...allRows];
+  filteredRows=[...allRows].sort((a,b)=>myKey(a.month_year)-myKey(b.month_year)||String(a.emp_id).localeCompare(String(b.emp_id)));
   renderTable(filteredRows);
   updateCards(filteredRows);
   document.getElementById('results').classList.add('on');
@@ -750,11 +801,22 @@ function renderTable(rows){
     tfoot.innerHTML=''; return;
   }
 
+  // Group rows by month_year in FY order — group headers only, no subtotals
+  let sno=0, curMonth=null;
   rows.forEach((r,i)=>{
+    if(r.month_year !== curMonth){
+      curMonth = r.month_year;
+      const gh=document.createElement('tr');
+      gh.className='month-group-header';
+      gh.innerHTML=`<td colspan="16" style="background:var(--accent-lo);border-top:2px solid var(--accent);border-bottom:1px solid var(--border);padding:8px 14px;font-family:var(--serif);font-size:15px;color:var(--accent);letter-spacing:.01em;">${esc(r.month_year)}</td>`;
+      tbody.appendChild(gh);
+      sno=0;
+    }
+        sno++;
     const tr=document.createElement('tr');
     tr.style.animationDelay=`${Math.min(i*10,250)}ms`;
     tr.innerHTML=`
-      <td class="td-sno">${i+1}</td>
+      <td class="td-sno">${sno}</td>
       <td class="td-id">${esc(r.emp_id)}</td>
       <td class="td-name">${esc(r.emp_name)}</td>
       <td>${esc(r.month_year)}</td>
@@ -772,6 +834,7 @@ function renderTable(rows){
       <td class="td-bonus td-num">${r.eligible?fmt(r.bonus):'—'}</td>`;
     tbody.appendChild(tr);
   });
+
 
   const elig=rows.filter(r=>r.eligible);
   const tot=elig.reduce((s,r)=>s+r.bonus,0);
@@ -804,12 +867,12 @@ function applyFilters(){
   const search=document.getElementById('f-search').value.toLowerCase();
   const elig=document.getElementById('f-elig').value;
   const area=document.getElementById('f-area').value;
-  const month=document.getElementById('f-month').value;
+  const selMonths=getSelectedMonths();
   filteredRows=allRows.filter(r=>{
     if(search&&!r.emp_name.toLowerCase().includes(search)&&!r.emp_id.toLowerCase().includes(search)) return false;
     if(elig&&(r.eligible?'Yes':'No')!==elig) return false;
     if(area&&r.area!==area) return false;
-    if(month&&r.month_year!==month) return false;
+    if(selMonths.length&&!selMonths.includes(r.month_year)) return false;
     return true;
   });
   if(sortCol>=0) doSort();
@@ -834,6 +897,7 @@ function sortTbl(col){
 function doSort(){
   const key=SORT_KEYS[sortCol];
   filteredRows.sort((a,b)=>{
+    if(key==='month_year') return (myKey(a.month_year)-myKey(b.month_year))*sortDir;
     let va=key==='_elig'?(a.eligible?1:0):(key==='_sno'?0:(a[key]??''));
     let vb=key==='_elig'?(b.eligible?1:0):(key==='_sno'?0:(b[key]??''));
     if(typeof va==='string') va=va.toLowerCase();
