@@ -361,24 +361,33 @@ const MW_PERIODS = [
   [4,2025,  9,2025,  {A:{UNSKILLED:20930,SEMISKI:23218,SKILLED:25506,HIGHSKI:27690}, B:{UNSKILLED:17524,SEMISKI:19760,SKILLED:23218,HIGHSKI:25506}, C:{UNSKILLED:14066,SEMISKI:16432,SKILLED:19760,HIGHSKI:23218}}],
 ];
 
+// Pre-built MW lookup: key = 'YYYY-MM' -> {A:{...}, B:{...}, C:{...}}
+const _mwCache = new Map();
+(function(){
+  const MNAMES = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+  for(const [fm,fy,tm,ty,table] of MW_PERIODS){
+    let y=fy, m=fm;
+    while(y*12+m <= ty*12+tm){
+      const key = `${y}-${String(m).padStart(2,'0')}`;
+      if(!_mwCache.has(key)) _mwCache.set(key, table);
+      m++; if(m>12){m=1;y++;}
+    }
+  }
+})();
+
 function getMW(area, skill, monthYear) {
   if (!monthYear) return 0;
   const parts = monthYear.split('-');
   const MNAMES = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
   const mo = MNAMES[parts[0]];
-  const yr = parseInt(parts[1]);
+  let yr = parseInt(parts[1]);
   if (!mo || !yr) return 0;
+  if (yr < 100) yr += 2000;
+  const key = `${yr}-${String(mo).padStart(2,'0')}`;
   const sk = normaliseSkill(skill);
   const ar = area || 'C';
-  for (const [fm,fy,tm,ty,table] of MW_PERIODS) {
-    const start = fy*12+fm, end = ty*12+tm, cur = yr*12+mo;
-    if (cur >= start && cur <= end) {
-      return (table[ar] || table['C'])[sk] || 0;
-    }
-  }
-  // fallback: use latest period
-  const last = MW_PERIODS[MW_PERIODS.length-1][4];
-  return (last[ar] || last['C'])[normaliseSkill(skill)] || 0;
+  const table = _mwCache.get(key) || MW_PERIODS[MW_PERIODS.length-1][4];
+  return (table[ar] || table['C'])[sk] || 0;
 }
 
 function normaliseSkill(skill) {
@@ -395,10 +404,11 @@ function normaliseSkill(skill) {
 const AREA_A = ['ahmedabad','bangalore','chennai','delhi','gurgaon','hyderabad','kolkata','lucknow','mumbai','nagpur','pune','kanpur'];
 const AREA_B = ['amritsar','aurangabad','bhopal','bhuban','bhubn','bhune','calicut','kozhikode','chandigarh','chandigargh','coimbatore','dehradun','goa','guwahati','indore','jaipur','jammu','jodhpur','kochi','madurai','mangalore','meerut','raipur','ranchi','srinagar','shrinagar','surat','trichy','tiruchirappalli','trivandrum','thiruvananthapuram','vadodara','vadodra','varanasi','vizag','visakhapatnam','gorakhpur','hubli','jamnagar','patna','port blair','rajkot','siliguri','vijayawada','vijaywada','belgaum','belagavi'];
 
+// Pre-build area lookup: check each known city token once per call
 function getArea(loc) {
   const l = (loc||'').toLowerCase().replace(/ new$| old$/,'').trim();
-  if (AREA_A.some(a => l.includes(a))) return 'A';
-  if (AREA_B.some(b => l.includes(b))) return 'B';
+  for(const a of AREA_A){ if(l.includes(a)) return 'A'; }
+  for(const b of AREA_B){ if(l.includes(b)) return 'B'; }
   return 'C';
 }
 
@@ -423,10 +433,13 @@ const SKILL_MAP = {
   'SUPERVISOR':          'Highly Skilled',
 };
 
+// Pre-build normalised skill map entries for fast lookup
+const _SKILL_ENTRIES = Object.entries(SKILL_MAP).map(([k,v])=>[k.toUpperCase().trim(),v]);
+
 function getSkill(desig) {
   const d = (desig||'').toUpperCase().trim();
   if (SKILL_MAP[d]) return SKILL_MAP[d];
-  for (const [k,v] of Object.entries(SKILL_MAP)) {
+  for (const [k,v] of _SKILL_ENTRIES) {
     if (d.includes(k) || k.includes(d)) return v;
   }
   const dl = d.toLowerCase();
@@ -454,7 +467,15 @@ function myKey(my){
   return yr*100 + fyMo;
 }
 
+const _pmCache = new Map();
 function parseMonth(val, filename) {
+  const cacheKey = String(val) + '|' + (filename||'');
+  if(_pmCache.has(cacheKey)) return _pmCache.get(cacheKey);
+  const result = _parseMonthInner(val, filename);
+  _pmCache.set(cacheKey, result);
+  return result;
+}
+function _parseMonthInner(val, filename) {
   if (!val && !filename) return null;
   // JS Date
   if (val instanceof Date) return `${MON[val.getMonth()]}-${val.getFullYear()}`;
@@ -513,7 +534,7 @@ function readFile(file) {
     reader.onload = e => {
       try {
         // Use raw:true to avoid XLSX.js misinterpreting quotePrefix cells and date formats
-        const wb = XLSX.read(e.target.result, {type:'array', cellDates:false, cellNF:false, cellText:false});
+        const wb = XLSX.read(e.target.result, {type:'array', cellDates:false, cellNF:false, cellText:true, dense:false, sheetStubs:false});
         // Find sheet with employee salary rows (Emp ID column with alphanumeric IDs)
         const prefs = ['salary export','salary','payroll','data','export','sheet1'];
         let sheet = null;
@@ -542,36 +563,10 @@ function readFile(file) {
         if(!sheet) sheet=wb.SheetNames[0];
         const ws = wb.Sheets[sheet];
         const rng = XLSX.utils.decode_range(ws['!ref']||'A1');
-        const R=rng.e.r-rng.s.r+1, C=rng.e.c-rng.s.c+1;
-        const raw=[];
-        for(let r=0;r<R;r++){
-          const row=new Array(C).fill(null);
-          for(let c=0;c<C;c++){
-            const addr=XLSX.utils.encode_cell({r:rng.s.r+r,c:rng.s.c+c});
-            const cell=ws[addr];
-            if(!cell||cell.v==null) continue;
-            if(cell.t==='n'){
-              // Check if it's a date serial — numFmtId 14-17 and 22 are date formats
-              const numFmtId = (cell.s && ws['!data'] && ws['!data'][rng.s.r+r] && ws['!data'][rng.s.r+r][rng.s.c+c]) ? 0 : 0;
-              const isDateFmt = cell.w && /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(cell.w);
-              if(isDateFmt && cell.v > 30000 && cell.v < 60000){
-                // Convert Excel serial to JS Date
-                const d = new Date(Math.round((cell.v - 25569)*86400*1000));
-                row[c] = d;
-              } else {
-                row[c] = cell.v;
-              }
-            } else if(cell.t==='d'){
-              row[c] = cell.v;
-            } else if(cell.t==='s'||cell.t==='str'){
-              // Strip quotePrefix artefacts — leading apostrophe sometimes bleeds into value
-              row[c] = String(cell.v).replace(/^'+/, '');
-            } else {
-              row[c] = cell.w || cell.v || null;
-            }
-          }
-          raw.push(row);
-        }
+        // Use sheet_to_json for fast bulk extraction (avoids per-cell encode_cell calls)
+        const raw = XLSX.utils.sheet_to_json(ws, {
+          header: 1, defval: null, raw: true
+        });
         resolve({raw, filename:file.name, sheet});
       } catch(err){reject(err);}
     };
@@ -760,7 +755,7 @@ async function runCalc(){
       if(rows.length===0){toast(`No employee rows found in ${filename}`,'err');}
       else{allRows.push(...rows);toast(`${rows.length} rows from ${filename}`,'ok');}
     }catch(e){toast(`Error reading ${uploadedFiles[i].name}: ${e.message}`,'err');}
-    await new Promise(r=>setTimeout(r,60));
+    await new Promise(r=>setTimeout(r,0)); // yield to UI
   }
 
   pf.style.width='100%';
