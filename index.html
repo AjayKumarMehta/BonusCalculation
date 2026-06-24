@@ -570,24 +570,29 @@ function parseRows(raw, filename) {
   const c_va  = (() => { let last=-1; headersLC.forEach((h,i)=>{const n=norm(h);if(n==='vda'||n==='da')last=i;}); return last; })();
 
   // Track actual first data row to apply strict first-row month/year+count check
+  // Flag stays false until a non-month/year row is seen, so consecutive month/year rows are all skipped
   let firstDataRowSeen = false;
 
   const rows=[];
   for(let i=headerIdx+1;i<raw.length;i++){
     const row=raw[i];
     if(!row||row.every(c=>c===null||c==='')) continue;
-    if(c_id<0) continue;
 
-    // STRICT RULE: first non-empty row after header — if any cell matches
-    // "month/year [+ optional count]" pattern (e.g. "Apr-2025 (42)"), skip entire row.
+    // STRICT RULE — checked per file, before anything else:
+    // Every leading non-empty row whose any cell matches "month/year [+ optional count]"
+    // is skipped entirely and never added to calculation.
+    // Checked BEFORE c_id guard so it fires reliably for every file.
     if(!firstDataRowSeen){
-      firstDataRowSeen = true;
       const isMonthYearRow = row.some(c => {
         const v = String(c==null?'':c).trim();
-        return /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-\/]*(20\d{2})/i.test(v);
+        // Matches: 'Apr-2025', 'Apr-25', 'April 2025 (42)', 'APR/25 (30 days)' etc.
+        return /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-\/]*(\d{2,4})/i.test(v);
       });
       if(isMonthYearRow) continue;
+      firstDataRowSeen = true;
     }
+
+    if(c_id<0) continue;
 
     // Primary: get eid from resolved column
     let eid=String(row[c_id]==null?'':row[c_id]).trim();
