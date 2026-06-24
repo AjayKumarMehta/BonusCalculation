@@ -207,7 +207,7 @@ footer{border-top:1px solid var(--border);padding:22px 60px;display:flex;justify
         <span class="hstat-lbl">Bonus rate</span>
       </div>
       <div class="hstat">
-        <span class="hstat-val">80+</span>
+        <span class="hstat-val">45</span>
         <span class="hstat-lbl">Cities mapped</span>
       </div>
       <div class="hstat">
@@ -311,7 +311,7 @@ footer{border-top:1px solid var(--border);padding:22px 60px;display:flex;justify
 
 <footer>
   <span class="footer-brand">BonusCalc</span>
-  <span>Payment of Bonus Act, 1965 · Central Govt MW · Area A/B/C · Location_Wise_List · AMBULIFT Designations · ROUNDDOWN formula</span>
+  <span>Payment of Bonus Act, 1965 · Central Govt MW · Area A/B/C (45 cities) · ROUNDDOWN formula</span>
   <span></span>
 </footer>
 
@@ -362,132 +362,101 @@ function normaliseSkill(skill) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   AREA MAPPING
+   AREA MAPPING — sourced from Location_Wise_List.xlsx
 ══════════════════════════════════════════════════════════════════ */
-// ── AREA MAPPING — sourced from Location_Wise_List.xlsx + AMBULIFT locations ──
-// Area A: 11 metro cities (Central Govt Schedule)
-const AREA_A = [
-  'ahmedabad','bangalore','bengaluru','chennai','delhi','gurgaon','gurugram',
-  'hyderabad','kolkata','lucknow','mumbai','nagpur','pune','kanpur',
-  'secunderabad','noida','faridabad','thane','navi mumbai',
+// Area A — exact locations from Location_Wise_List.xlsx
+const AREA_A_LOCS = [
+  'ahmedabad','bangalore','bengaluru','chennai','delhi','new delhi',
+  'gurgaon','gurugram','hyderabad','kolkata','calcutta','lucknow',
+  'mumbai','bombay','nagpur','pune'
 ];
-// Area B: Tier-2 cities from Location_Wise_List.xlsx + additional known cities
-const AREA_B = [
-  // From Location_Wise_List.xlsx
+// Area B — exact locations from Location_Wise_List.xlsx
+const AREA_B_LOCS = [
   'amritsar','aurangabad','bhopal','bhubneshwar','bhubaneswar','bhubaneshwar',
   'calicut','kozhikode','chandigarh','chandigargh','coimbatore','dehradun',
-  'goa','guwahati','indore','jaipur','jammu','jodhpur','kochi','madurai',
-  'mangalore','meerut','raipur','ranchi','srinagar','shrinagar','surat',
-  'trichy','tiruchirappalli','trivandrum','thiruvananthapuram','vadodara','vadodra',
-  'varanasi','vizag','visakhapatnam',
-  // AMBULIFT specific locations (mapped B per geography/MW tables)
-  'bhuj','darbhanga','dimapur','gorakhpur','hubli','hubballi','imphal',
-  'jamnagar','jharsuguda','jorhat','leh','patna','port blair','rajkot',
-  'silchar','siliguri','vijayawada','vijaywada','belgaum','belagavi',
-  // Other common B-category cities
-  'mysore','mysuru','agra','allahabad','prayagraj','jabalpur','bareilly',
-  'aligarh','moradabad','gwalior','nashik','kolhapur','solapur','nellore',
-  'tirunelveli','salem','thrissur','warangal','guntur','kakinada',
+  'goa','guwahati','indore','jaipur','jammu','kashmir','jodhpur',
+  'kochi','cochin','madurai','mangalore','mangaluru','meerut','raipur',
+  'ranchi','srinagar','shrinagar','surat','trichy','tiruchirappalli',
+  'trivandrum','thiruvananthapuram','vadodara','vadodra','baroda',
+  'varanasi','banaras','vizag','visakhapatnam'
 ];
-
-// ── EMP-ID PREFIX → LOCATION (for registers without a Location column) ──────
-// Keys are uppercase prefixes; longest match wins.
-const EMP_ID_LOCATION = {
-  // AMBULIFT
-  'AMBBHUJ':  'Bhuj',
-  'AMBCNI':   'Chennai',
-  'AMBDARB':  'Darbhanga',
-  'AMBDMR':   'Dimapur',
-  'AMBGRK':   'Gorakhpur',
-  'AMBHBL':   'Hubli',
-  'AMBIPHL':  'Imphal',
-  'AMBJAM':   'Jamnagar',
-  'AMBJDR':   'Jodhpur',
-  'AMBJHAR':  'Jharsuguda',
-  'AMBJRHT':  'Jorhat',
-  'AMBLEH':   'Leh',
-  'AMBPAT':   'Patna',
-  'AMBPB':    'Port Blair',
-  'AMBRJKT':  'Rajkot',
-  'AMBSCL':   'Silchar',
-  'AMBSIL':   'Silchar',
-  'AMBVJWD':  'Vijayawada',
-  'AMBK':     'Kolkata',
-  'AMBD':     'Delhi',
-  // BHS (extend as needed)
-  'BHSAHM':   'Ahmedabad',
-  'BHSBLR':   'Bangalore',
-  'BHSCHN':   'Chennai',
-  'BHSDEL':   'Delhi',
-  'BHSHYD':   'Hyderabad',
-  'BHSKOL':   'Kolkata',
-  'BHSMUM':   'Mumbai',
-  'BHSPUN':   'Pune',
-};
-
-function getLocationFromEmpId(empId) {
-  const id = (empId||'').toUpperCase().trim();
-  // Try longest prefix first
-  const sorted = Object.keys(EMP_ID_LOCATION).sort((a,b) => b.length - a.length);
-  for (const prefix of sorted) {
-    if (id.startsWith(prefix)) return EMP_ID_LOCATION[prefix];
-  }
-  return '';
-}
+// All other locations → Area C (Bathinda, Dibrugarh, Gaya, Khajuraho,
+//   Tirupati, Udaipur, Agartala and any unlisted city)
 
 function getArea(loc) {
-  const l = (loc||'').toLowerCase().replace(/ new$| old$|\s+/g, c => c === '   ' ? '' : c).trim();
-  // Normalised: strip trailing modifiers
-  const ln = l.replace(/(new|old|east|west|north|south)\s*$/, '').trim();
-  if (AREA_A.some(a => ln.includes(a) || a.includes(ln))) return 'A';
-  if (AREA_B.some(b => ln.includes(b) || (b.includes(ln) && b.length > 4))) return 'B';
+  const l = (loc||'').toLowerCase().replace(/[^a-z\s]/g,'').trim();
+  if (AREA_A_LOCS.some(a => l === a || l.includes(a))) return 'A';
+  if (AREA_B_LOCS.some(b => l === b || l.includes(b))) return 'B';
   return 'C';
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SKILL MAPPING
+   SKILL MAPPING — aligned with Central Govt MW categories:
+   Unskilled | Semi-Skilled | Skilled | Highly Skilled
 ══════════════════════════════════════════════════════════════════ */
-const SKILL_MAP = {
-  // ── Operations & Maintenance ──────────────────────────────────
-  'OPERATOR-BHS':              'Skilled',
-  'SITE INCHARGE':             'Highly Skilled',
-  'JUNIOR TECHNICIAN':         'Semi-Skilled',
-  'TECHNICIAN-O&M':            'Skilled',
-  'JR. TECHNICIAN -O&M':       'Semi-Skilled',
-  'JR. TECHNICIAN-O&M':        'Semi-Skilled',
-  'TECHNICIAN':                'Skilled',
-  'HELPER':                    'Unskilled',
-  // ── AMBULIFT / BHS Designations ──────────────────────────────
-  'TECHNICIAN CUM DRIVER':     'Skilled',
-  'DRIVER/ATTENDANT':          'Semi-Skilled',
-  'DRIVER / ATTENDANT':        'Semi-Skilled',
-  'ATTENDANT/HELPER':          'Semi-Skilled',
-  'ATTENDANT / HELPER':        'Semi-Skilled',
-  'ATTENDANT':                 'Semi-Skilled',
-  'HELPER/ATTENDANT':          'Semi-Skilled',
+const DESIG_SKILL_MAP = {
+  // Highly Skilled
+  'SITE INCHARGE':            'Highly Skilled',
+  'SITE IN-CHARGE':           'Highly Skilled',
+  'SITE IN CHARGE':           'Highly Skilled',
+  'PROJECT MANAGER':          'Highly Skilled',
+  'SUPERVISOR':               'Highly Skilled',
+  'SENIOR TECHNICIAN':        'Highly Skilled',
+  'SR. TECHNICIAN':           'Highly Skilled',
+  'SR TECHNICIAN':            'Highly Skilled',
+  'SENIOR TECHNICIAN-O&M':    'Highly Skilled',
+  'SR. TECHNICIAN -O&M':      'Highly Skilled',
+  // Skilled
+  'OPERATOR-BHS':             'Skilled',
+  'OPERATOR BHS':             'Skilled',
+  'OPERATOR':                 'Skilled',
+  'TECHNICIAN-O&M':           'Skilled',
+  'TECHNICIAN O&M':           'Skilled',
+  'TECHNICIAN':               'Skilled',
+  'TECHNICIAN CUM DRIVER':    'Skilled',
+  'ELECTRICIAN':              'Skilled',
+  'MECHANIC':                 'Skilled',
+  'FITTER':                   'Skilled',
+  'WELDER':                   'Skilled',
+  'PLUMBER':                  'Skilled',
+  // Semi-Skilled
+  'JUNIOR TECHNICIAN':        'Semi-Skilled',
+  'JR. TECHNICIAN':           'Semi-Skilled',
+  'JR TECHNICIAN':            'Semi-Skilled',
+  'JR. TECHNICIAN -O&M':      'Semi-Skilled',
+  'JR. TECHNICIAN-O&M':       'Semi-Skilled',
+  'JR TECHNICIAN O&M':        'Semi-Skilled',
+  'DRIVER/ATTENDANT':         'Semi-Skilled',
+  'DRIVER ATTENDANT':         'Semi-Skilled',
+  'DRIVER':                   'Semi-Skilled',
+  'ATTENDANT/HELPER':         'Semi-Skilled',
+  'ATTENDANT HELPER':         'Semi-Skilled',
+  'ATTENDANT':                'Semi-Skilled',
+  // Unskilled
+  'HELPER':                   'Unskilled',
+  'PEON':                     'Unskilled',
+  'SWEEPER':                  'Unskilled',
+  'CLEANER':                  'Unskilled',
+  'WATCHMAN':                 'Unskilled',
+  'GARDENER':                 'Unskilled',
 };
 
 function getSkill(desig) {
   const d = (desig||'').toUpperCase().trim();
   // Exact match first
-  if (SKILL_MAP[d]) return SKILL_MAP[d];
-  // Normalised match (collapse spaces/slashes)
-  const dn = d.replace(/[\s\/\-\.]+/g,'');
-  for (const [k,v] of Object.entries(SKILL_MAP)) {
-    if (k.replace(/[\s\/\-\.]+/g,'') === dn) return v;
+  if (DESIG_SKILL_MAP[d]) return DESIG_SKILL_MAP[d];
+  // Partial match (longer key takes priority — sort by length desc)
+  const keys = Object.keys(DESIG_SKILL_MAP).sort((a,b)=>b.length-a.length);
+  for (const k of keys) {
+    if (d.includes(k) || k.includes(d)) return DESIG_SKILL_MAP[k];
   }
-  // Partial / keyword match
-  for (const [k,v] of Object.entries(SKILL_MAP)) {
-    if (d.includes(k) || k.includes(d)) return v;
-  }
+  // Keyword fallbacks
   const dl = d.toLowerCase();
-  if (dl.includes('highly') || dl.includes('high skill')) return 'Highly Skilled';
-  if (dl.includes('technician')) return 'Skilled';
-  if (dl.includes('driver')) return 'Semi-Skilled';
-  if (dl.includes('attendant')) return 'Semi-Skilled';
-  if (dl.includes('helper')) return 'Unskilled';
-  if (dl.includes('operator')) return 'Skilled';
-  return 'Semi-Skilled';  // safe default
+  if (dl.includes('site incharge')||dl.includes('site in-charge')||dl.includes('senior tech')||dl.includes('sr tech')||dl.includes('supervisor')) return 'Highly Skilled';
+  if (dl.includes('technician')||dl.includes('operator')||dl.includes('mechanic')||dl.includes('electrician')||dl.includes('fitter')) return 'Skilled';
+  if (dl.includes('junior')||dl.includes('jr.')||dl.includes('driver')||dl.includes('attendant')) return 'Semi-Skilled';
+  if (dl.includes('helper')||dl.includes('peon')||dl.includes('sweeper')||dl.includes('cleaner')) return 'Unskilled';
+  return 'Semi-Skilled'; // default
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -685,9 +654,7 @@ function parseRows(raw, filename) {
     const theoretical=bt+vt;
     const desig=c_dg>=0?String(row[c_dg]||'').trim():'';
     const loc_raw=c_loc>=0?String(row[c_loc]==null?'':row[c_loc]).trim():'';
-    // Fallback 1: row[1] (second column sometimes has branch/location)
-    // Fallback 2: derive from Employee ID prefix (e.g. AMBVJWD → Vijayawada)
-    const loc=loc_raw||String(row[1]==null?'':row[1]).trim()||getLocationFromEmpId(eid);
+    const loc=loc_raw||String(row[1]==null?'':row[1]).trim();
     const monthYear=(c_my>=0?parseMonth(row[c_my],filename):null)||parseMonth(null,filename)||'Unknown';
     const sal_cal_days=c_sd>=0?parseInt(row[c_sd])||31:31;
     const pay_days=c_pd>=0?parseInt(row[c_pd])||sal_cal_days:sal_cal_days;
@@ -788,7 +755,7 @@ async function runCalc(){
   if(!allRows.length){toast('No data extracted. Check file format.','err');calcBtn.disabled=false;return;}
 
   // Populate month filter
-  const months=[...new Set(allRows.map(r=>r.month_year))].sort((a,b)=>monthSortKey(a)-monthSortKey(b));
+  const months=[...new Set(allRows.map(r=>r.month_year))].sort();
   const mf=document.getElementById('f-month');
   mf.innerHTML='<option value="">All Months</option>';
   months.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;mf.appendChild(o);});
@@ -899,11 +866,8 @@ function sortTbl(col){
 function doSort(){
   const key=SORT_KEYS[sortCol];
   filteredRows.sort((a,b)=>{
-    let va, vb;
-    if(key==='_elig')       { va=a.eligible?1:0; vb=b.eligible?1:0; }
-    else if(key==='_sno')   { va=0; vb=0; }
-    else if(key==='month_year') { va=monthSortKey(a.month_year); vb=monthSortKey(b.month_year); }
-    else                    { va=a[key]??''; vb=b[key]??''; }
+    let va=key==='_elig'?(a.eligible?1:0):(key==='_sno'?0:(a[key]??''));
+    let vb=key==='_elig'?(b.eligible?1:0):(key==='_sno'?0:(b[key]??''));
     if(typeof va==='string') va=va.toLowerCase();
     if(typeof vb==='string') vb=vb.toLowerCase();
     return(va<vb?-1:va>vb?1:0)*sortDir;
