@@ -152,11 +152,6 @@ tr:last-child td{border-bottom:none;}
 .td-bonus{font-weight:600;color:var(--ink);text-align:right;}
 tfoot td{background:var(--base);font-weight:700;font-size:12px;color:var(--ink);border-top:2px solid var(--accent);padding:12px 14px;}
 
-/* ── MW SOURCE BADGE ─────────────────────────────────────────────── */
-.mw-badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:2px;letter-spacing:.04em;margin-left:5px;vertical-align:middle;cursor:default;}
-.mw-HR{background:#FFF3CD;color:#856404;}
-.mw-CG{background:var(--blue-lo);color:var(--blue);}
-
 /* ── EMPTY STATE ─────────────────────────────────────────────────── */
 .empty{text-align:center;padding:56px 40px;color:var(--ink-soft);}
 .empty-icon{font-size:44px;margin-bottom:14px;}
@@ -212,7 +207,7 @@ footer{border-top:1px solid var(--border);padding:22px 60px;display:flex;justify
         <span class="hstat-lbl">Bonus rate</span>
       </div>
       <div class="hstat">
-        <span class="hstat-val">45</span>
+        <span class="hstat-val">80+</span>
         <span class="hstat-lbl">Cities mapped</span>
       </div>
       <div class="hstat">
@@ -316,7 +311,7 @@ footer{border-top:1px solid var(--border);padding:22px 60px;display:flex;justify
 
 <footer>
   <span class="footer-brand">BonusCalc</span>
-  <span>Payment of Bonus Act, 1965 · Central Govt MW (Area A/B/C) · Haryana State MW w.e.f. 01-01-2025 · ROUNDDOWN formula</span>
+  <span>Payment of Bonus Act, 1965 · Central Govt MW · Area A/B/C · Location_Wise_List · AMBULIFT Designations · ROUNDDOWN formula</span>
   <span></span>
 </footer>
 
@@ -338,18 +333,8 @@ const MW_PERIODS = [
   [4,2025, 9,2025, {A:{UNSKILLED:21120,SEMISKI:23406,SKILLED:25752,HIGHSKI:28332}, B:{UNSKILLED:17922,SEMISKI:19878,SKILLED:21826,HIGHSKI:24010}, C:{UNSKILLED:16152,SEMISKI:17922,SKILLED:19668,HIGHSKI:21638}}],
 ];
 
-function getMW(area, skill, monthYear, loc) {
+function getMW(area, skill, monthYear) {
   if (!monthYear) return 0;
-  // State override: Haryana locations use Haryana State MW (w.e.f. Jan 2025)
-  if (loc && isHaryanaLocation(loc)) {
-    const parts = monthYear.split('-');
-    const MNAMES = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
-    const mo = MNAMES[parts[0]];
-    const yr = parseInt(parts[1]);
-    if (mo && yr && (yr > 2025 || (yr === 2025 && mo >= 1))) {
-      return getHaryanaMW(skill);
-    }
-  }
   const parts = monthYear.split('-');
   const MNAMES = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
   const mo = MNAMES[parts[0]];
@@ -377,79 +362,87 @@ function normaliseSkill(skill) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   HARYANA STATE MINIMUM WAGES (w.e.f. 01-01-2025)
-   Source: Haryana Labour Dept Notification dated 04/04/2025
-   Ref: AI0AR0-2/2025/11047-89
-   Monthly rates (Basic + DA combined)
+   AREA MAPPING
 ══════════════════════════════════════════════════════════════════ */
-const HARYANA_LOCATIONS = ['gurgaon','gurugram','faridabad','panchkula','ambala','hisar','rohtak','panipat','karnal','sonipat','rewari','bhiwani','sirsa','jhajjar','palwal','mewat','nuh','mahendragarh','narnaul','yamuna nagar','yamunanagar','kurukshetra','kaithal','jind','fatehabad','haryana'];
-
-// Haryana MW from 01-01-2025 (monthly)
-// Skill categories per notification: Unskilled, Semi-Skilled A, Semi-Skilled B, Skilled A, Skilled B, Highly Skilled
-const HARYANA_MW_JAN2025 = {
-  UNSKILLED: 11257,
-  SEMISKIA:  11820,   // Semi-Skilled A (₹11,819.94 → floor)
-  SEMISKIB:  12411,   // Semi-Skilled B (₹12,410.91 → floor)
-  SKILLEDA:  13031,   // Skilled A
-  SKILLEDB:  13683,   // Skilled B
-  HIGHSKI:   14367,   // Highly Skilled
-};
-
-// Map our normalised skill to Haryana category
-function getHaryanaMW(skill) {
-  const s = normaliseSkill(skill);
-  if (s === 'HIGHSKI')  return HARYANA_MW_JAN2025.HIGHSKI;
-  if (s === 'SKILLED')  return HARYANA_MW_JAN2025.SKILLEDA;  // default to Skilled A
-  if (s === 'SEMISKI')  return HARYANA_MW_JAN2025.SEMISKIA;  // default to Semi-Skilled A
-  return HARYANA_MW_JAN2025.UNSKILLED;
-}
-
-function isHaryanaLocation(loc) {
-  const l = (loc||'').toLowerCase().trim();
-  return HARYANA_LOCATIONS.some(h => l.includes(h));
-}
-
-
-// Area mapping sourced from Location_Wise_List.xlsx (45 cities)
-const AREA_A = ['ahmedabad','bangalore','bengaluru','chennai','delhi','gurgaon','gurugram','hyderabad','kolkata','lucknow','mumbai','nagpur','pune'];
-const AREA_B = ['amritsar','aurangabad','bhopal','bhubneshwar','bhubaneshwar','bhubaneswar','calicut','kozhikode','chandigarh','chandigargh','coimbatore','dehradun','goa','guwahati','indore','jaipur','jammu','jodhpur','kochi','madurai','mangalore','meerut','raipur','ranchi','srinagar','shrinagar','surat','trichy','tiruchirappalli','trivandrum','thiruvananthapuram','vadodra','vadodara','varanasi','vizag','visakhapatnam'];
-// Area C cities: bathinda, dibrugarh, gaya, khajuraho, tirupati, udaipur, agartala — rest default to C
-const AREA_C_EXPLICIT = ['bathinda','dibrugarh','gaya','khajuraho','tirupati','udaipur','agartala'];
+// ── AREA MAPPING — sourced from Location_Wise_List.xlsx + AMBULIFT locations ──
+// Area A: 11 metro cities (Central Govt Schedule)
+const AREA_A = [
+  'ahmedabad','bangalore','bengaluru','chennai','delhi','gurgaon','gurugram',
+  'hyderabad','kolkata','lucknow','mumbai','nagpur','pune','kanpur',
+  'secunderabad','noida','faridabad','thane','navi mumbai',
+];
+// Area B: Tier-2 cities from Location_Wise_List.xlsx + additional known cities
+const AREA_B = [
+  // From Location_Wise_List.xlsx
+  'amritsar','aurangabad','bhopal','bhubneshwar','bhubaneswar','bhubaneshwar',
+  'calicut','kozhikode','chandigarh','chandigargh','coimbatore','dehradun',
+  'goa','guwahati','indore','jaipur','jammu','jodhpur','kochi','madurai',
+  'mangalore','meerut','raipur','ranchi','srinagar','shrinagar','surat',
+  'trichy','tiruchirappalli','trivandrum','thiruvananthapuram','vadodara','vadodra',
+  'varanasi','vizag','visakhapatnam',
+  // AMBULIFT specific locations (mapped B per geography/MW tables)
+  'bhuj','darbhanga','dimapur','gorakhpur','hubli','hubballi','imphal',
+  'jamnagar','jharsuguda','jorhat','leh','patna','port blair','rajkot',
+  'silchar','siliguri','vijayawada','vijaywada','belgaum','belagavi',
+  // Other common B-category cities
+  'mysore','mysuru','agra','allahabad','prayagraj','jabalpur','bareilly',
+  'aligarh','moradabad','gwalior','nashik','kolhapur','solapur','nellore',
+  'tirunelveli','salem','thrissur','warangal','guntur','kakinada',
+];
 
 function getArea(loc) {
-  const l = (loc||'').toLowerCase().replace(/ new$| old$/,'').trim();
-  if (AREA_A.some(a => l.includes(a))) return 'A';
-  if (AREA_B.some(b => l.includes(b))) return 'B';
-  return 'C';  // includes explicit C cities and all unlisted locations
+  const l = (loc||'').toLowerCase().replace(/ new$| old$|\s+/g, c => c === '   ' ? '' : c).trim();
+  // Normalised: strip trailing modifiers
+  const ln = l.replace(/(new|old|east|west|north|south)\s*$/, '').trim();
+  if (AREA_A.some(a => ln.includes(a) || a.includes(ln))) return 'A';
+  if (AREA_B.some(b => ln.includes(b) || b.includes(ln) && b.length > 4)) return 'B';
+  return 'C';
 }
 
 /* ══════════════════════════════════════════════════════════════════
    SKILL MAPPING
 ══════════════════════════════════════════════════════════════════ */
 const SKILL_MAP = {
-  'OPERATOR-BHS':        'Skilled',
-  'SITE INCHARGE':       'Highly Skilled',
-  'JUNIOR TECHNICIAN':   'Semi-Skilled',
-  'TECHNICIAN-O&M':      'Skilled',
-  'JR. TECHNICIAN -O&M': 'Semi-Skilled',
-  'TECHNICIAN':          'Skilled',
-  'HELPER':              'Unskilled',
-  'TECHNICIAN CUM DRIVER':'Skilled',
-  'DRIVER/ATTENDANT':    'Semi-Skilled',
-  'ATTENDANT/HELPER':    'Semi-Skilled',
-  'ATTENDANT':           'Semi-Skilled',
+  // ── Operations & Maintenance ──────────────────────────────────
+  'OPERATOR-BHS':              'Skilled',
+  'SITE INCHARGE':             'Highly Skilled',
+  'JUNIOR TECHNICIAN':         'Semi-Skilled',
+  'TECHNICIAN-O&M':            'Skilled',
+  'JR. TECHNICIAN -O&M':       'Semi-Skilled',
+  'JR. TECHNICIAN-O&M':        'Semi-Skilled',
+  'TECHNICIAN':                'Skilled',
+  'HELPER':                    'Unskilled',
+  // ── AMBULIFT / BHS Designations ──────────────────────────────
+  'TECHNICIAN CUM DRIVER':     'Skilled',
+  'DRIVER/ATTENDANT':          'Semi-Skilled',
+  'DRIVER / ATTENDANT':        'Semi-Skilled',
+  'ATTENDANT/HELPER':          'Semi-Skilled',
+  'ATTENDANT / HELPER':        'Semi-Skilled',
+  'ATTENDANT':                 'Semi-Skilled',
+  'HELPER/ATTENDANT':          'Semi-Skilled',
 };
 
 function getSkill(desig) {
   const d = (desig||'').toUpperCase().trim();
+  // Exact match first
   if (SKILL_MAP[d]) return SKILL_MAP[d];
+  // Normalised match (collapse spaces/slashes)
+  const dn = d.replace(/[\s\/\-\.]+/g,'');
+  for (const [k,v] of Object.entries(SKILL_MAP)) {
+    if (k.replace(/[\s\/\-\.]+/g,'') === dn) return v;
+  }
+  // Partial / keyword match
   for (const [k,v] of Object.entries(SKILL_MAP)) {
     if (d.includes(k) || k.includes(d)) return v;
   }
   const dl = d.toLowerCase();
+  if (dl.includes('highly') || dl.includes('high skill')) return 'Highly Skilled';
   if (dl.includes('technician')) return 'Skilled';
+  if (dl.includes('driver')) return 'Semi-Skilled';
+  if (dl.includes('attendant')) return 'Semi-Skilled';
   if (dl.includes('helper')) return 'Unskilled';
-  return 'Semi-Skilled';  // default for Attendant, Driver/Attendant variants
+  if (dl.includes('operator')) return 'Skilled';
+  return 'Semi-Skilled';  // safe default
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -653,8 +646,7 @@ function parseRows(raw, filename) {
     const pay_days=c_pd>=0?parseInt(row[c_pd])||sal_cal_days:sal_cal_days;
     const skill=getSkill(desig);
     const area=getArea(loc);
-    const mw=getMW(area,skill,monthYear,loc);
-    const mw_source = (loc && isHaryanaLocation(loc)) ? 'HR' : 'CG';
+    const mw=getMW(area,skill,monthYear);
     const elig=theoretical>0&&theoretical<21000;
     let proratedMW=0,bonus=0;
     if(elig&&sal_cal_days>0&&mw>0){
@@ -666,7 +658,7 @@ function parseRows(raw, filename) {
       emp_name:c_nm>=0?String(row[c_nm]||'').trim():'',
       month_year:monthYear, designation:desig, skill,
       location:loc, area, basic_th:bt, vda_th:vt,
-      theoretical, min_wages:mw, mw_source, sal_cal_days, pay_days,
+      theoretical, min_wages:mw, sal_cal_days, pay_days,
       prorated_mw:proratedMW, eligible:elig, bonus
     });
   }
@@ -790,7 +782,7 @@ function renderTable(rows){
       <td><span class="td-area area-${r.area}">${r.area}</span></td>
       <td class="td-num">${fmt(r.basic_th)}</td>
       <td class="td-num">${fmt(r.vda_th)}</td>
-      <td class="td-num">${r.min_wages?`${fmt(r.min_wages)}<span class="mw-badge mw-${r.mw_source}" title="${r.mw_source==='HR'?'Haryana State MW (w.e.f. 01-01-2025)':'Central Govt MW'}">${r.mw_source}</span>`:'—'}</td>
+      <td class="td-num">${r.min_wages?fmt(r.min_wages):'—'}</td>
       <td class="td-num">${r.sal_cal_days}</td>
       <td class="td-num">${r.pay_days}</td>
       <td class="td-num">${r.prorated_mw?fmt(r.prorated_mw):'—'}</td>
@@ -873,24 +865,23 @@ function doSort(){
 ══════════════════════════════════════════════════════════════════ */
 function downloadExcel(){
   if(!filteredRows.length){toast('No data to download','err');return;}
-  const headers=['S.No','Employee ID','Employee Name','Month/Year','Designation','Skill','Location','Area','Basic (Th) INR','VDA (Th) INR','Min Wages INR','MW Source','Sal Cal Days','Pay Days','Prorated MW INR','Eligible for Bonus','Bonus (8.33%) INR'];
+  const headers=['S.No','Employee ID','Employee Name','Month/Year','Designation','Skill','Location','Area','Basic (Th) INR','VDA (Th) INR','Min Wages INR','Sal Cal Days','Pay Days','Prorated MW INR','Eligible for Bonus','Bonus (8.33%) INR'];
   const data=[headers,...filteredRows.map((r,i)=>[
     i+1,r.emp_id,r.emp_name,r.month_year,r.designation,r.skill,
     r.location,r.area,r.basic_th,r.vda_th,r.min_wages||'',
-    r.mw_source==='HR'?'Haryana State':'Central Govt',
     r.sal_cal_days,r.pay_days,r.prorated_mw||'',
     r.eligible?'Yes':'No', r.eligible?r.bonus:'—'
   ])];
   const elig=filteredRows.filter(r=>r.eligible);
   data.push(['TOTAL','',`${filteredRows.length} employees`,'','','','','',
     filteredRows.reduce((s,r)=>s+r.basic_th,0),
-    filteredRows.reduce((s,r)=>s+r.vda_th,0),'','','','','',
+    filteredRows.reduce((s,r)=>s+r.vda_th,0),'','','','',
     `${elig.length} Yes / ${filteredRows.length-elig.length} No`,
     elig.reduce((s,r)=>s+r.bonus,0)
   ]);
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[6,14,32,12,24,13,14,6,12,10,14,14,10,10,14,17,14].map(w=>({wch:w}));
+  ws['!cols']=[6,14,32,12,24,13,14,6,12,10,14,10,10,14,17,14].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb,ws,'Bonus Register');
   XLSX.writeFile(wb,'Bonus_Register.xlsx');
   toast('Excel downloaded','ok');
