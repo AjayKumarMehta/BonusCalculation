@@ -207,7 +207,7 @@ footer{border-top:1px solid var(--border);padding:22px 60px;display:flex;justify
         <span class="hstat-lbl">Bonus rate</span>
       </div>
       <div class="hstat">
-        <span class="hstat-val">45</span>
+        <span class="hstat-val">61</span>
         <span class="hstat-lbl">Cities mapped</span>
       </div>
       <div class="hstat">
@@ -311,7 +311,7 @@ footer{border-top:1px solid var(--border);padding:22px 60px;display:flex;justify
 
 <footer>
   <span class="footer-brand">BonusCalc</span>
-  <span>Payment of Bonus Act, 1965 · Central Govt MW · Area A/B/C (45 cities) · ROUNDDOWN formula</span>
+  <span>Payment of Bonus Act, 1965 · Central Govt MW · Area A/B/C · ROUNDDOWN formula</span>
   <span></span>
 </footer>
 
@@ -362,101 +362,50 @@ function normaliseSkill(skill) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   AREA MAPPING — sourced from Location_Wise_List.xlsx
+   AREA MAPPING
 ══════════════════════════════════════════════════════════════════ */
-// Area A — exact locations from Location_Wise_List.xlsx
-const AREA_A_LOCS = [
-  'ahmedabad','bangalore','bengaluru','chennai','delhi','new delhi',
-  'gurgaon','gurugram','hyderabad','kolkata','calcutta','lucknow',
-  'mumbai','bombay','nagpur','pune'
-];
-// Area B — exact locations from Location_Wise_List.xlsx
-const AREA_B_LOCS = [
-  'amritsar','aurangabad','bhopal','bhubneshwar','bhubaneswar','bhubaneshwar',
-  'calicut','kozhikode','chandigarh','chandigargh','coimbatore','dehradun',
-  'goa','guwahati','indore','jaipur','jammu','kashmir','jodhpur',
-  'kochi','cochin','madurai','mangalore','mangaluru','meerut','raipur',
-  'ranchi','srinagar','shrinagar','surat','trichy','tiruchirappalli',
-  'trivandrum','thiruvananthapuram','vadodara','vadodra','baroda',
-  'varanasi','banaras','vizag','visakhapatnam'
-];
-// All other locations → Area C (Bathinda, Dibrugarh, Gaya, Khajuraho,
-//   Tirupati, Udaipur, Agartala and any unlisted city)
+const AREA_A = ['ahmedabad','bangalore','chennai','delhi','gurgaon','hyderabad','kolkata','lucknow','mumbai','nagpur','pune','kanpur'];
+const AREA_B = ['amritsar','aurangabad','bhopal','bhubaneshwar','calicut','kozhikode','chandigarh','coimbatore','dehradun','goa','guwahati','indore','jaipur','jammu','jodhpur','kochi','madurai','mangalore','meerut','raipur','ranchi','srinagar','surat','trichy','tiruchirappalli','trivandrum','thiruvananthapuram','vadodara','varanasi','vizag','visakhapatnam','gorakhpur','hubli','jamnagar','patna','port blair','rajkot','siliguri','vijayawada','vijaywada','belgaum','belagavi'];
 
 function getArea(loc) {
-  const l = (loc||'').toLowerCase().replace(/[^a-z\s]/g,'').trim();
-  if (AREA_A_LOCS.some(a => l === a || l.includes(a))) return 'A';
-  if (AREA_B_LOCS.some(b => l === b || l.includes(b))) return 'B';
+  const l = (loc||'').toLowerCase().replace(/ new$| old$/,'').trim();
+  if (AREA_A.some(a => l.includes(a))) return 'A';
+  if (AREA_B.some(b => l.includes(b))) return 'B';
   return 'C';
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SKILL MAPPING — aligned with Central Govt MW categories:
-   Unskilled | Semi-Skilled | Skilled | Highly Skilled
+   SKILL MAPPING
 ══════════════════════════════════════════════════════════════════ */
-const DESIG_SKILL_MAP = {
-  // Highly Skilled
-  'SITE INCHARGE':            'Highly Skilled',
-  'SITE IN-CHARGE':           'Highly Skilled',
-  'SITE IN CHARGE':           'Highly Skilled',
-  'PROJECT MANAGER':          'Highly Skilled',
-  'SUPERVISOR':               'Highly Skilled',
-  'SENIOR TECHNICIAN':        'Highly Skilled',
-  'SR. TECHNICIAN':           'Highly Skilled',
-  'SR TECHNICIAN':            'Highly Skilled',
-  'SENIOR TECHNICIAN-O&M':    'Highly Skilled',
-  'SR. TECHNICIAN -O&M':      'Highly Skilled',
-  // Skilled
-  'OPERATOR-BHS':             'Skilled',
-  'OPERATOR BHS':             'Skilled',
-  'OPERATOR':                 'Skilled',
-  'TECHNICIAN-O&M':           'Skilled',
-  'TECHNICIAN O&M':           'Skilled',
-  'TECHNICIAN':               'Skilled',
-  'TECHNICIAN CUM DRIVER':    'Skilled',
-  'ELECTRICIAN':              'Skilled',
-  'MECHANIC':                 'Skilled',
-  'FITTER':                   'Skilled',
-  'WELDER':                   'Skilled',
-  'PLUMBER':                  'Skilled',
-  // Semi-Skilled
-  'JUNIOR TECHNICIAN':        'Semi-Skilled',
-  'JR. TECHNICIAN':           'Semi-Skilled',
-  'JR TECHNICIAN':            'Semi-Skilled',
-  'JR. TECHNICIAN -O&M':      'Semi-Skilled',
-  'JR. TECHNICIAN-O&M':       'Semi-Skilled',
-  'JR TECHNICIAN O&M':        'Semi-Skilled',
-  'DRIVER/ATTENDANT':         'Semi-Skilled',
-  'DRIVER ATTENDANT':         'Semi-Skilled',
-  'DRIVER':                   'Semi-Skilled',
-  'ATTENDANT/HELPER':         'Semi-Skilled',
-  'ATTENDANT HELPER':         'Semi-Skilled',
-  'ATTENDANT':                'Semi-Skilled',
-  // Unskilled
-  'HELPER':                   'Unskilled',
-  'PEON':                     'Unskilled',
-  'SWEEPER':                  'Unskilled',
-  'CLEANER':                  'Unskilled',
-  'WATCHMAN':                 'Unskilled',
-  'GARDENER':                 'Unskilled',
+const SKILL_MAP = {
+  'OPERATOR-BHS':        'Skilled',
+  'SITE INCHARGE':       'Highly Skilled',
+  'JUNIOR TECHNICIAN':   'Semi-Skilled',
+  'TECHNICIAN-O&M':      'Skilled',
+  'JR. TECHNICIAN -O&M': 'Semi-Skilled',
+  'TECHNICIAN':          'Skilled',
+  'HELPER':              'Unskilled',
+  'TECHNICIAN CUM DRIVER':'Skilled',
+  'DRIVER/ATTENDANT':    'Semi-Skilled',
+  'ATTENDANT/HELPER':    'Semi-Skilled',
+  'ATTENDANT':           'Semi-Skilled',
+  // Added from DesignationToSkillMapping.xlsx
+  'ENGINEER':            'Highly Skilled',
+  'SR. TECHNICIAN-O&M':  'Highly Skilled',
+  'SUPERVISOR':          'Highly Skilled',
 };
 
 function getSkill(desig) {
   const d = (desig||'').toUpperCase().trim();
-  // Exact match first
-  if (DESIG_SKILL_MAP[d]) return DESIG_SKILL_MAP[d];
-  // Partial match (longer key takes priority — sort by length desc)
-  const keys = Object.keys(DESIG_SKILL_MAP).sort((a,b)=>b.length-a.length);
-  for (const k of keys) {
-    if (d.includes(k) || k.includes(d)) return DESIG_SKILL_MAP[k];
+  if (SKILL_MAP[d]) return SKILL_MAP[d];
+  for (const [k,v] of Object.entries(SKILL_MAP)) {
+    if (d.includes(k) || k.includes(d)) return v;
   }
-  // Keyword fallbacks
   const dl = d.toLowerCase();
-  if (dl.includes('site incharge')||dl.includes('site in-charge')||dl.includes('senior tech')||dl.includes('sr tech')||dl.includes('supervisor')) return 'Highly Skilled';
-  if (dl.includes('technician')||dl.includes('operator')||dl.includes('mechanic')||dl.includes('electrician')||dl.includes('fitter')) return 'Skilled';
-  if (dl.includes('junior')||dl.includes('jr.')||dl.includes('driver')||dl.includes('attendant')) return 'Semi-Skilled';
-  if (dl.includes('helper')||dl.includes('peon')||dl.includes('sweeper')||dl.includes('cleaner')) return 'Unskilled';
-  return 'Semi-Skilled'; // default
+  if (dl.includes('engineer') || dl.includes('supervisor') || dl.startsWith('sr.')) return 'Highly Skilled';
+  if (dl.includes('technician')) return 'Skilled';
+  if (dl.includes('helper')) return 'Unskilled';
+  return 'Semi-Skilled';  // default for Attendant, Driver/Attendant variants
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -608,7 +557,7 @@ function parseRows(raw, filename) {
   const headers=raw[headerIdx].map(h=>String(h==null?'':h).trim());
   const headersLC=headers.map(h=>norm(h));
 
-  const c_id  = gc(headersLC,'emp id','empid','employee id','emp. id','empno');
+  const c_id  = gc(headersLC,'emp id','empid','employee id','emp. id','empno','emp code','empcode','emp_code');
   const c_nm  = gc(headersLC,'employee name','emp name','empname');
   const c_dg  = gc(headersLC,'designation','desig');
   const c_bt  = gc(headersLC,'basic (th)','basic(th)','basicth','basic th');
@@ -640,6 +589,10 @@ function parseRows(raw, filename) {
         }
       }
     }
+
+    // Reject month/year strings that sneak in as EmpIDs
+    // Patterns: 'Apr-2025', 'APRIL 2025', 'Apr 2025 30', 'Apr-2025 (30)', 'April 2025 (30 Days)'
+    if(eid && /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(eid)) continue;
 
     // Skip empty, numeric-only, header keywords, and grand total rows
     if(!eid) continue;
