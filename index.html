@@ -569,11 +569,25 @@ function parseRows(raw, filename) {
   const c_ba  = (() => { let last=-1; headersLC.forEach((h,i)=>{if(h&&norm(h)==='basic')last=i;}); return last; })();
   const c_va  = (() => { let last=-1; headersLC.forEach((h,i)=>{const n=norm(h);if(n==='vda'||n==='da')last=i;}); return last; })();
 
+  // Track actual first data row to apply strict first-row month/year+count check
+  let firstDataRowSeen = false;
+
   const rows=[];
   for(let i=headerIdx+1;i<raw.length;i++){
     const row=raw[i];
     if(!row||row.every(c=>c===null||c==='')) continue;
     if(c_id<0) continue;
+
+    // STRICT RULE: first non-empty row after header — if any cell matches
+    // "month/year [+ optional count]" pattern (e.g. "Apr-2025 (42)"), skip entire row.
+    if(!firstDataRowSeen){
+      firstDataRowSeen = true;
+      const isMonthYearRow = row.some(c => {
+        const v = String(c==null?'':c).trim();
+        return /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-\/]*(20\d{2})/i.test(v);
+      });
+      if(isMonthYearRow) continue;
+    }
 
     // Primary: get eid from resolved column
     let eid=String(row[c_id]==null?'':row[c_id]).trim();
@@ -589,10 +603,6 @@ function parseRows(raw, filename) {
         }
       }
     }
-
-    // Reject month/year strings that sneak in as EmpIDs
-    // Patterns: 'Apr-2025', 'APRIL 2025', 'Apr 2025 30', 'Apr-2025 (30)', 'April 2025 (30 Days)'
-    if(eid && /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(eid)) continue;
 
     // Skip empty, numeric-only, header keywords, and grand total rows
     if(!eid) continue;
