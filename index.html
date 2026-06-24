@@ -390,12 +390,57 @@ const AREA_B = [
   'tirunelveli','salem','thrissur','warangal','guntur','kakinada',
 ];
 
+// ── EMP-ID PREFIX → LOCATION (for registers without a Location column) ──────
+// Keys are uppercase prefixes; longest match wins.
+const EMP_ID_LOCATION = {
+  // AMBULIFT
+  'AMBBHUJ':  'Bhuj',
+  'AMBCNI':   'Chennai',
+  'AMBDARB':  'Darbhanga',
+  'AMBDMR':   'Dimapur',
+  'AMBGRK':   'Gorakhpur',
+  'AMBHBL':   'Hubli',
+  'AMBIPHL':  'Imphal',
+  'AMBJAM':   'Jamnagar',
+  'AMBJDR':   'Jodhpur',
+  'AMBJHAR':  'Jharsuguda',
+  'AMBJRHT':  'Jorhat',
+  'AMBLEH':   'Leh',
+  'AMBPAT':   'Patna',
+  'AMBPB':    'Port Blair',
+  'AMBRJKT':  'Rajkot',
+  'AMBSCL':   'Silchar',
+  'AMBSIL':   'Silchar',
+  'AMBVJWD':  'Vijayawada',
+  'AMBK':     'Kolkata',
+  'AMBD':     'Delhi',
+  // BHS (extend as needed)
+  'BHSAHM':   'Ahmedabad',
+  'BHSBLR':   'Bangalore',
+  'BHSCHN':   'Chennai',
+  'BHSDEL':   'Delhi',
+  'BHSHYD':   'Hyderabad',
+  'BHSKOL':   'Kolkata',
+  'BHSMUM':   'Mumbai',
+  'BHSPUN':   'Pune',
+};
+
+function getLocationFromEmpId(empId) {
+  const id = (empId||'').toUpperCase().trim();
+  // Try longest prefix first
+  const sorted = Object.keys(EMP_ID_LOCATION).sort((a,b) => b.length - a.length);
+  for (const prefix of sorted) {
+    if (id.startsWith(prefix)) return EMP_ID_LOCATION[prefix];
+  }
+  return '';
+}
+
 function getArea(loc) {
   const l = (loc||'').toLowerCase().replace(/ new$| old$|\s+/g, c => c === '   ' ? '' : c).trim();
   // Normalised: strip trailing modifiers
   const ln = l.replace(/(new|old|east|west|north|south)\s*$/, '').trim();
   if (AREA_A.some(a => ln.includes(a) || a.includes(ln))) return 'A';
-  if (AREA_B.some(b => ln.includes(b) || b.includes(ln) && b.length > 4)) return 'B';
+  if (AREA_B.some(b => ln.includes(b) || (b.includes(ln) && b.length > 4))) return 'B';
   return 'C';
 }
 
@@ -640,7 +685,9 @@ function parseRows(raw, filename) {
     const theoretical=bt+vt;
     const desig=c_dg>=0?String(row[c_dg]||'').trim():'';
     const loc_raw=c_loc>=0?String(row[c_loc]==null?'':row[c_loc]).trim():'';
-    const loc=loc_raw||String(row[1]==null?'':row[1]).trim();
+    // Fallback 1: row[1] (second column sometimes has branch/location)
+    // Fallback 2: derive from Employee ID prefix (e.g. AMBVJWD → Vijayawada)
+    const loc=loc_raw||String(row[1]==null?'':row[1]).trim()||getLocationFromEmpId(eid);
     const monthYear=(c_my>=0?parseMonth(row[c_my],filename):null)||parseMonth(null,filename)||'Unknown';
     const sal_cal_days=c_sd>=0?parseInt(row[c_sd])||31:31;
     const pay_days=c_pd>=0?parseInt(row[c_pd])||sal_cal_days:sal_cal_days;
@@ -741,7 +788,7 @@ async function runCalc(){
   if(!allRows.length){toast('No data extracted. Check file format.','err');calcBtn.disabled=false;return;}
 
   // Populate month filter
-  const months=[...new Set(allRows.map(r=>r.month_year))].sort();
+  const months=[...new Set(allRows.map(r=>r.month_year))].sort((a,b)=>monthSortKey(a)-monthSortKey(b));
   const mf=document.getElementById('f-month');
   mf.innerHTML='<option value="">All Months</option>';
   months.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;mf.appendChild(o);});
@@ -852,8 +899,11 @@ function sortTbl(col){
 function doSort(){
   const key=SORT_KEYS[sortCol];
   filteredRows.sort((a,b)=>{
-    let va=key==='_elig'?(a.eligible?1:0):(key==='_sno'?0:(a[key]??''));
-    let vb=key==='_elig'?(b.eligible?1:0):(key==='_sno'?0:(b[key]??''));
+    let va, vb;
+    if(key==='_elig')       { va=a.eligible?1:0; vb=b.eligible?1:0; }
+    else if(key==='_sno')   { va=0; vb=0; }
+    else if(key==='month_year') { va=monthSortKey(a.month_year); vb=monthSortKey(b.month_year); }
+    else                    { va=a[key]??''; vb=b[key]??''; }
     if(typeof va==='string') va=va.toLowerCase();
     if(typeof vb==='string') vb=vb.toLowerCase();
     return(va<vb?-1:va>vb?1:0)*sortDir;
