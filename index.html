@@ -335,7 +335,7 @@ footer{border-top:1px solid var(--border);padding:22px 60px;display:flex;justify
 
 <footer>
   <span class="footer-brand">BonusCalc</span>
-  <span>Payment of Bonus Act, 1965 · Central Govt MW · Area A/B/C · ROUNDDOWN formula</span>
+  <span>Payment of Bonus Act, 1965 · CLC Construction/Maintenance MW · Area A/B/C · ROUNDDOWN formula</span>
   <span></span>
 </footer>
 
@@ -347,14 +347,18 @@ footer{border-top:1px solid var(--border);padding:22px 60px;display:flex;justify
    Key: [period_start_month_idx] where 0=Apr, 6=Oct
 ══════════════════════════════════════════════════════════════════ */
 const MW_PERIODS = [
-  // [from_month(1-based), from_year, to_month, to_year, {A:{UNSKILLED,SEMI SKILLED,SKILLED,HIGHLY SKILLED}, B:{...}, C:{...}}]
-  [4,2022, 9,2022, {A:{UNSKILLED:18869,SEMISKI:20903,SKILLED:22568,HIGHSKI:24826}, B:{UNSKILLED:15994,SEMISKI:18647,SKILLED:20020,HIGHSKI:22027}, C:{UNSKILLED:12116,SEMISKI:14144,SKILLED:17108,HIGHSKI:20020}}],
-  [10,2022, 3,2023, {A:{UNSKILLED:19291,SEMISKI:21372,SKILLED:23088,HIGHSKI:25397}, B:{UNSKILLED:16354,SEMISKI:19066,SKILLED:20488,HIGHSKI:22540}, C:{UNSKILLED:12402,SEMISKI:14482,SKILLED:17446,HIGHSKI:20488}}],
-  [4,2023, 9,2023, {A:{UNSKILLED:19668,SEMISKI:21797,SKILLED:23960,HIGHSKI:26354}, B:{UNSKILLED:16680,SEMISKI:19484,SKILLED:20926,HIGHSKI:23016}, C:{UNSKILLED:13078,SEMISKI:15240,SKILLED:18271,HIGHSKI:21097}}],
-  [10,2023, 3,2024, {A:{UNSKILLED:20018,SEMISKI:22172,SKILLED:24390,HIGHSKI:26827}, B:{UNSKILLED:16970,SEMISKI:19824,SKILLED:21272,HIGHSKI:23396}, C:{UNSKILLED:13318,SEMISKI:15518,SKILLED:18596,HIGHSKI:21488}}],
-  [4,2024, 9,2024, {A:{UNSKILLED:20358,SEMISKI:22568,SKILLED:24804,HIGHSKI:27282}, B:{UNSKILLED:17264,SEMISKI:19132,SKILLED:21041,HIGHSKI:23144}, C:{UNSKILLED:15548,SEMISKI:17231,SKILLED:18941,HIGHSKI:20836}}],
-  [10,2024, 3,2025, {A:{UNSKILLED:20736,SEMISKI:22976,SKILLED:25272,HIGHSKI:27804}, B:{UNSKILLED:17588,SEMISKI:19498,SKILLED:21428,HIGHSKI:23570}, C:{UNSKILLED:15844,SEMISKI:17570,SKILLED:19298,HIGHSKI:21228}}],
-  [4,2025, 9,2025, {A:{UNSKILLED:21120,SEMISKI:23406,SKILLED:25752,HIGHSKI:28332}, B:{UNSKILLED:17922,SEMISKI:19878,SKILLED:21826,HIGHSKI:24010}, C:{UNSKILLED:16152,SEMISKI:17922,SKILLED:19668,HIGHSKI:21638}}],
+  // Construction or Maintenance of Roads/Runways/Building Operations (F.No.1/7(3) & 1/5(3) & 1/6(3) CLC)
+  // Monthly rates = Basic + VDA (per day) x 26 working days
+  // Apr-2022 & Oct-2022: use Apr-2023 rates (no earlier circular available — conservative)
+  // Oct-2023 & Oct-2024: interpolated from CPI-IW index progression between confirmed Apr circulars
+  // Apr-2023, Apr-2024, Apr-2025: CONFIRMED from CLC circulars
+  [4,2022,  9,2022,  {A:{UNSKILLED:19136,SEMISKI:21216,SKILLED:23322,HIGHSKI:25298}, B:{UNSKILLED:16016,SEMISKI:18070,SKILLED:21216,HIGHSKI:23322}, C:{UNSKILLED:12844,SEMISKI:15002,SKILLED:18070,HIGHSKI:21216}}],
+  [10,2022, 3,2023,  {A:{UNSKILLED:19136,SEMISKI:21216,SKILLED:23322,HIGHSKI:25298}, B:{UNSKILLED:16016,SEMISKI:18070,SKILLED:21216,HIGHSKI:23322}, C:{UNSKILLED:12844,SEMISKI:15002,SKILLED:18070,HIGHSKI:21216}}],
+  [4,2023,  9,2023,  {A:{UNSKILLED:19136,SEMISKI:21216,SKILLED:23322,HIGHSKI:25298}, B:{UNSKILLED:16016,SEMISKI:18070,SKILLED:21216,HIGHSKI:23322}, C:{UNSKILLED:12844,SEMISKI:15002,SKILLED:18070,HIGHSKI:21216}}],
+  [10,2023, 3,2024,  {A:{UNSKILLED:19448,SEMISKI:21580,SKILLED:23712,HIGHSKI:25714}, B:{UNSKILLED:16276,SEMISKI:18382,SKILLED:21580,HIGHSKI:23712}, C:{UNSKILLED:13052,SEMISKI:15262,SKILLED:18382,HIGHSKI:21580}}],
+  [4,2024,  9,2024,  {A:{UNSKILLED:20228,SEMISKI:22412,SKILLED:24648,HIGHSKI:26728}, B:{UNSKILLED:16926,SEMISKI:19084,SKILLED:22412,HIGHSKI:24648}, C:{UNSKILLED:13572,SEMISKI:15860,SKILLED:19084,HIGHSKI:22412}}],
+  [10,2024, 3,2025,  {A:{UNSKILLED:20696,SEMISKI:22958,SKILLED:25220,HIGHSKI:27378}, B:{UNSKILLED:17342,SEMISKI:19526,SKILLED:22958,HIGHSKI:25220}, C:{UNSKILLED:13910,SEMISKI:16250,SKILLED:19526,HIGHSKI:22958}}],
+  [4,2025,  9,2025,  {A:{UNSKILLED:20930,SEMISKI:23218,SKILLED:25506,HIGHSKI:27690}, B:{UNSKILLED:17524,SEMISKI:19760,SKILLED:23218,HIGHSKI:25506}, C:{UNSKILLED:14066,SEMISKI:16432,SKILLED:19760,HIGHSKI:23218}}],
 ];
 
 function getMW(area, skill, monthYear) {
@@ -389,7 +393,7 @@ function normaliseSkill(skill) {
    AREA MAPPING
 ══════════════════════════════════════════════════════════════════ */
 const AREA_A = ['ahmedabad','bangalore','chennai','delhi','gurgaon','hyderabad','kolkata','lucknow','mumbai','nagpur','pune','kanpur'];
-const AREA_B = ['amritsar','aurangabad','bhopal','bhubaneshwar','bhubneshwar','calicut','kozhikode','chandigarh','chandigargh','coimbatore','dehradun','goa','guwahati','indore','jaipur','jammu','jodhpur','kochi','madurai','mangalore','meerut','raipur','ranchi','srinagar','shrinagar','surat','trichy','tiruchirappalli','trivandrum','thiruvananthapuram','vadodara','vadodra','varanasi','vizag','visakhapatnam','gorakhpur','hubli','jamnagar','patna','port blair','rajkot','siliguri','vijayawada','vijaywada','belgaum','belagavi'];
+const AREA_B = ['amritsar','aurangabad','bhopal','bhuban','bhubn','bhune','calicut','kozhikode','chandigarh','chandigargh','coimbatore','dehradun','goa','guwahati','indore','jaipur','jammu','jodhpur','kochi','madurai','mangalore','meerut','raipur','ranchi','srinagar','shrinagar','surat','trichy','tiruchirappalli','trivandrum','thiruvananthapuram','vadodara','vadodra','varanasi','vizag','visakhapatnam','gorakhpur','hubli','jamnagar','patna','port blair','rajkot','siliguri','vijayawada','vijaywada','belgaum','belagavi'];
 
 function getArea(loc) {
   const l = (loc||'').toLowerCase().replace(/ new$| old$/,'').trim();
